@@ -1,0 +1,23 @@
+.env
+.env.local
+.env.development
+.env.staging
+.env.production
+.DS_Store
+
+# Build output
+bin/
+dist/
+tmp/
+
+# Coverage and profiling
+coverage.out
+*.prof
+
+# Go workspace and vendored dependencies
+go.work
+vendor/
+
+# Local editor files
+.idea/
+.vscode/
