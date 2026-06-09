@@ -18,3 +18,7 @@ Suggested first pass:
 - `chat_conversations`
 - `chat_participants`
 - `chat_messages`
+
+Current draft files:
+
+- `users.sql`
