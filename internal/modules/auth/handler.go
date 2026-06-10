@@ -1,3 +1,4 @@
+// internal/modules/auth/handler.go
 package auth
 
 import (
@@ -133,7 +134,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	// refresh token 7 days
 	refreshTokenTTL := 7 * 24 * time.Hour
 
-	accessToken, refreshToken, err := h.authService.LoginWithRefresh(req.Email, req.Password, refreshTokenTTL)
+	accessToken, refreshToken, err := h.authService.Login(req.Email, req.Password, refreshTokenTTL)
 	if err != nil {
 		if errors.Is(err, ErrInvalidCredentials) {
 

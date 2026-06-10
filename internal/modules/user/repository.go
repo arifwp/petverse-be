@@ -1,3 +1,4 @@
+// internal/modules/user/repository.go
 package user
 
 import (
@@ -41,12 +42,23 @@ VALUES ($1, $2, $3, $4, $5, $6)
 }
 
 func (r *UserRepository) GetUserByEmail(email string) (*User, error) {
-	query := `SELECT email FROM users WHERE email = $1`
+	query := `
+		SELECT id, name, username, email, password, created_at, updated_at
+		FROM users
+		WHERE email = $1
+	`
 
 	var user User
 
-	err := r.db.QueryRow(query, email).Scan(&user.Email)
-
+	err := r.db.QueryRow(query, email).Scan(
+		&user.ID,
+		&user.Name,
+		&user.Username,
+		&user.Email,
+		&user.PasswordHash,
+		&user.CreatedAt,
+		&user.UpdatedAt,
+	)
 	if err != nil {
 		return nil, err
 	}

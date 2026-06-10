@@ -4,6 +4,7 @@ package auth
 import (
 	"database/sql"
 	"errors"
+	"log/slog"
 	"time"
 
 	"github.com/arifwahyu/petverse-be/internal/modules/user"
@@ -57,24 +58,6 @@ func (s *AuthService) Register(email, name, username, password string) (*user.Us
 	return user, nil
 }
 
-func (s *AuthService) Login(email, password string) (string, error) {
-	user, err := s.userRepo.GetUserByEmail(email)
-	if err != nil {
-		return "", ErrInvalidCredentials
-	}
-
-	if err := VerifyPassword(user.PasswordHash, password); err != nil {
-		return "", ErrInvalidCredentials
-	}
-
-	token, err := s.generateAccessToken(user)
-	if err != nil {
-		return "", err
-	}
-
-	return token, nil
-}
-
 func (s *AuthService) generateAccessToken(user *user.User) (string, error) {
 	expirationTime := time.Now().Add(s.accessTokenTTL)
 
@@ -120,14 +103,18 @@ func (s *AuthService) ValidateToken(tokenString string) (jwt.MapClaims, error) {
 	return nil, ErrInvalidToken
 }
 
-func (s *AuthService) LoginWithRefresh(email, password string, refreshTokenTTL time.Duration) (accessToken string, refreshToken string, err error) {
+func (s *AuthService) Login(email, password string, refreshTokenTTL time.Duration) (accessToken string, refreshToken string, err error) {
+
 	// Get the user from the database
 	user, err := s.userRepo.GetUserByEmail(email)
+
 	if err != nil {
+
 		return "", "", ErrInvalidCredentials
 	}
 	// Verify the password
 	if err := VerifyPassword(user.PasswordHash, password); err != nil {
+		slog.Error("email", email, "error", err)
 		return "", "", ErrInvalidCredentials
 	}
 	// Generate an access token
