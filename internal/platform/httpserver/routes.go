@@ -2,9 +2,12 @@ package httpserver
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 	"time"
+
+	"github.com/arifwahyu/petverse-be/internal/modules/auth"
+	"github.com/arifwahyu/petverse-be/internal/modules/user"
+	"github.com/arifwahyu/petverse-be/internal/shared/apiresponse"
 )
 
 func registerSystemRoutes(mux *http.ServeMux, readiness ReadinessChecker) {
@@ -12,20 +15,46 @@ func registerSystemRoutes(mux *http.ServeMux, readiness ReadinessChecker) {
 	mux.HandleFunc("GET /readyz", readyHandler(readiness))
 }
 
+func registerRoutes(
+	mux *http.ServeMux,
+	readiness ReadinessChecker,
+	authHandler *auth.AuthHandler,
+	userHandler *user.UserHandler,
+	authMiddleware Middleware,
+) {
+	registerSystemRoutes(mux, readiness)
+	registerAPIRoutes(mux, authHandler, userHandler, authMiddleware)
+}
+
+func registerAPIRoutes(
+	mux *http.ServeMux,
+	authHandler *auth.AuthHandler,
+	userHandler *user.UserHandler,
+	authMiddleware Middleware,
+) {
+	auth.RegisterRoutes(mux, authHandler)
+	user.RegisterRoutes(mux, userHandler, authMiddleware)
+}
+
 func healthHandler(w http.ResponseWriter, _ *http.Request) {
-	writeJSON(w, http.StatusOK, map[string]string{
-		"status": "ok",
-	})
+	apiresponse.OK(
+		w,
+		map[string]string{
+			"status": "ok",
+		},
+	)
 }
 
 func readyHandler(readiness ReadinessChecker) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		now := time.Now().UTC().Format(time.RFC3339)
+
 		if readiness == nil {
-			writeJSON(w, http.StatusOK, map[string]any{
-				"status":   "ready",
-				"database": "not_configured",
-				"time":     time.Now().UTC().Format(time.RFC3339),
-			})
+			apiresponse.Error(
+				w,
+				http.StatusServiceUnavailable,
+				"Readiness checker is not configured",
+			)
 			return
 		}
 
@@ -33,24 +62,23 @@ func readyHandler(readiness ReadinessChecker) http.HandlerFunc {
 		defer cancel()
 
 		if err := readiness.Ping(ctx); err != nil {
-			writeJSON(w, http.StatusServiceUnavailable, map[string]any{
-				"status":   "not_ready",
-				"database": "unavailable",
-				"time":     time.Now().UTC().Format(time.RFC3339),
-			})
+			apiresponse.Error(
+				w,
+				http.StatusServiceUnavailable,
+				"Database is unavailable",
+			)
 			return
 		}
 
-		writeJSON(w, http.StatusOK, map[string]any{
-			"status":   "ready",
-			"database": "ok",
-			"time":     time.Now().UTC().Format(time.RFC3339),
-		})
+		apiresponse.Success(
+			w,
+			http.StatusOK,
+			"Service is ready",
+			map[string]any{
+				"status":   "ready",
+				"database": "ok",
+				"time":     now,
+			},
+		)
 	}
-}
-
-func writeJSON(w http.ResponseWriter, status int, payload any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(payload)
 }

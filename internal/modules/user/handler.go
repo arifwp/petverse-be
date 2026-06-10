@@ -4,28 +4,27 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/arifwahyu/petverse-be/internal/modules/auth"
-	"github.com/arifwahyu/petverse-be/internal/modules/middleware"
+	"github.com/arifwahyu/petverse-be/internal/authctx"
 )
 
 type UserHandler struct {
-	userRepo *auth.UserRepository
+	userRepo *UserRepository
 }
 
-func NewUserHandler(userRepo *auth.UserRepository) *UserHandler {
+func NewUserHandler(userRepo *UserRepository) *UserHandler {
 	return &UserHandler{
 		userRepo: userRepo,
 	}
 }
 
 type UserResponse struct {
-	ID string `json:"id"`	
-	Email string `json:"email"`
+	ID       string `json:"id"`
+	Email    string `json:"email"`
 	Username string `json:"username"`
 }
 
 func (h *UserHandler) Profile(w http.ResponseWriter, r *http.Request) {
-	userId, ok := middleware.GetUserID(r)
+	userId, ok := authctx.GetUserID(r)
 	if !ok {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
@@ -37,9 +36,9 @@ func (h *UserHandler) Profile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response := UserResponse {
-		ID: user.ID.String(),
-		Email: user.Email,
+	response := UserResponse{
+		ID:       user.ID.String(),
+		Email:    user.Email,
 		Username: user.Username,
 	}
 

@@ -1,3 +1,4 @@
+// internal/modules/auth/service.go
 package auth
 
 import (
@@ -5,55 +6,55 @@ import (
 	"errors"
 	"time"
 
+	"github.com/arifwahyu/petverse-be/internal/modules/user"
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
 )
 
 var (
-    ErrInvalidCredentials = errors.New("invalid credentials")
-    ErrInvalidToken       = errors.New("invalid token")
-    ErrExpiredToken       = errors.New("token has expired")
-    ErrEmailInUse         = errors.New("email already in use")
+	ErrInvalidCredentials = errors.New("invalid credentials")
+	ErrInvalidToken       = errors.New("invalid token")
+	ErrExpiredToken       = errors.New("token has expired")
+	ErrEmailInUse         = errors.New("email already in use")
 )
 
 type AuthService struct {
-	userRepo *UserRepository
+	userRepo         *user.UserRepository
 	refreshTokenRepo *RefreshTokenRepository
-	jwtSecret []byte
-	accessTokenTTL time.Duration
+	jwtSecret        []byte
+	accessTokenTTL   time.Duration
 }
 
-func NewAuthService(userRepo *UserRepository, refreshTokenRepo *RefreshTokenRepository, jwtSecret string, accessTokenTTL time.Duration) *AuthService {
-	return &AuthService {
-		userRepo: userRepo,
+func NewAuthService(userRepo *user.UserRepository, refreshTokenRepo *RefreshTokenRepository, jwtSecret string, accessTokenTTL time.Duration) *AuthService {
+	return &AuthService{
+		userRepo:         userRepo,
 		refreshTokenRepo: refreshTokenRepo,
-		jwtSecret: []byte(jwtSecret),
-		accessTokenTTL: accessTokenTTL,
+		jwtSecret:        []byte(jwtSecret),
+		accessTokenTTL:   accessTokenTTL,
 	}
 }
 
-
-func (s *AuthService) Register(email, name, username, password string) (*User, error) {
-    // Check if user already exists
-    _, err := s.userRepo.GetUserByEmail(email)
-    if err == nil {
-        return nil, ErrEmailInUse
-    }
-    // Only proceed if the error was "user not found"
-    if !errors.Is(err, sql.ErrNoRows) {
-        return nil, err
-    }
-    // Hash the password
-    hashedPassword, err := HashPassword(password)
-    if err != nil {
-        return nil, err
-    }
-    // Create the user
-    user, err := s.userRepo.CreateUser(email, name, username, hashedPassword)
-    if err != nil {
-        return nil, err
-    }
-    return user, nil
+func (s *AuthService) Register(email, name, username, password string) (*user.User, error) {
+	// Check if user already exists
+	_, err := s.userRepo.GetUserByEmail(email)
+	if err == nil {
+		return nil, ErrEmailInUse
+	}
+	// Only proceed if the error was "user not found"
+	if !errors.Is(err, sql.ErrNoRows) {
+		return nil, err
+	}
+	// Hash the password
+	hashedPassword, err := HashPassword(password)
+	if err != nil {
+		return nil, err
+	}
+	// Create the user
+	user, err := s.userRepo.CreateUser(email, name, username, hashedPassword)
+	if err != nil {
+		return nil, err
+	}
+	return user, nil
 }
 
 func (s *AuthService) Login(email, password string) (string, error) {
@@ -70,19 +71,19 @@ func (s *AuthService) Login(email, password string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	
+
 	return token, nil
 }
 
-func (s *AuthService) generateAccessToken(user *User) (string, error) {
+func (s *AuthService) generateAccessToken(user *user.User) (string, error) {
 	expirationTime := time.Now().Add(s.accessTokenTTL)
 
 	claims := jwt.MapClaims{
-		"sub": user.ID.String(),
+		"sub":      user.ID.String(),
 		"username": user.Username,
-		"email": user.Email,
-		"exp": expirationTime.Unix(),
-		"iat": time.Now().Unix(),
+		"email":    user.Email,
+		"exp":      expirationTime.Unix(),
+		"iat":      time.Now().Unix(),
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
@@ -91,7 +92,7 @@ func (s *AuthService) generateAccessToken(user *User) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	
+
 	return tokenString, nil
 }
 
@@ -120,29 +121,29 @@ func (s *AuthService) ValidateToken(tokenString string) (jwt.MapClaims, error) {
 }
 
 func (s *AuthService) LoginWithRefresh(email, password string, refreshTokenTTL time.Duration) (accessToken string, refreshToken string, err error) {
-    // Get the user from the database
-    user, err := s.userRepo.GetUserByEmail(email)
-    if err != nil {
-        return "", "", ErrInvalidCredentials
-    }
-    // Verify the password
-    if err := VerifyPassword(user.PasswordHash, password); err != nil {
-        return "", "", ErrInvalidCredentials
-    }
-    // Generate an access token
-    accessToken, err = s.generateAccessToken(user)
-    if err != nil {
-        return "", "", err
-    }
-    // Create a refresh token
-    token, err := s.refreshTokenRepo.CreateRefreshToken(user.ID, refreshTokenTTL)
-    if err != nil {
-        return "", "", err
-    }
-    return accessToken, token.Token, nil
+	// Get the user from the database
+	user, err := s.userRepo.GetUserByEmail(email)
+	if err != nil {
+		return "", "", ErrInvalidCredentials
+	}
+	// Verify the password
+	if err := VerifyPassword(user.PasswordHash, password); err != nil {
+		return "", "", ErrInvalidCredentials
+	}
+	// Generate an access token
+	accessToken, err = s.generateAccessToken(user)
+	if err != nil {
+		return "", "", err
+	}
+	// Create a refresh token
+	token, err := s.refreshTokenRepo.CreateRefreshToken(user.ID, refreshTokenTTL)
+	if err != nil {
+		return "", "", err
+	}
+	return accessToken, token.Token, nil
 }
 
-func (s *AuthService) RefreshAccessToken(refreshTokenString string) (string,error) {
+func (s *AuthService) RefreshAccessToken(refreshTokenString string) (string, error) {
 	token, err := s.refreshTokenRepo.GetRefreshToken(refreshTokenString)
 	if err != nil {
 		return "", ErrInvalidToken
@@ -169,7 +170,6 @@ func (s *AuthService) RefreshAccessToken(refreshTokenString string) (string,erro
 	return accessToken, nil
 }
 
-
 func HashPassword(password string) (string, error) {
 	hashedBytes, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
@@ -181,4 +181,3 @@ func HashPassword(password string) (string, error) {
 func VerifyPassword(hashedPassword, providedPassword string) error {
 	return bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(providedPassword))
 }
-

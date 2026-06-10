@@ -3,18 +3,30 @@ package app
 import (
 	"context"
 	"errors"
+	"log"
 	"log/slog"
 	"net/http"
 	"time"
 
 	"github.com/arifwahyu/petverse-be/internal/config"
+	"github.com/arifwahyu/petverse-be/internal/modules/auth"
+	"github.com/arifwahyu/petverse-be/internal/modules/user"
 	"github.com/arifwahyu/petverse-be/internal/platform/database"
 	"github.com/arifwahyu/petverse-be/internal/platform/httpserver"
 	"github.com/arifwahyu/petverse-be/internal/platform/logger"
 	"github.com/arifwahyu/petverse-be/internal/platform/shutdown"
+	"github.com/joho/godotenv"
 )
 
+func loadEnv() {
+	if err := godotenv.Load(); err != nil {
+		log.Println("No .env file found, using environment variables")
+	}
+}
+
 func Run(parent context.Context) error {
+	loadEnv()
+
 	cfg, err := config.Load()
 	if err != nil {
 		return err
@@ -43,7 +55,27 @@ func Run(parent context.Context) error {
 		readiness = store
 	}
 
-	server := httpserver.New(cfg.HTTP, log, readiness)
+	userRepo := user.NewUserRepository(store.DB())
+	refreshTokenRepo := auth.NewRefreshTokenRepository(store.DB())
+
+	authService := auth.NewAuthService(
+		userRepo,
+		refreshTokenRepo,
+		cfg.Security.AccessTokenSecret,
+		15*time.Minute,
+	)
+
+	authHandler := auth.NewAuthHandler(authService)
+	userHandler := user.NewUserHandler(userRepo)
+
+	server := httpserver.New(
+		cfg.HTTP,
+		log,
+		readiness,
+		authService,
+		authHandler,
+		userHandler,
+	)
 	errCh := make(chan error, 1)
 
 	go func() {

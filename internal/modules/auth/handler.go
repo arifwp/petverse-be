@@ -5,6 +5,8 @@ import (
 	"errors"
 	"net/http"
 	"time"
+
+	"github.com/arifwahyu/petverse-be/internal/shared/apiresponse"
 )
 
 type AuthHandler struct {
@@ -12,63 +14,92 @@ type AuthHandler struct {
 }
 
 func NewAuthHandler(authService *AuthService) *AuthHandler {
-	return &AuthHandler {
+	return &AuthHandler{
 		authService: authService,
 	}
 }
 
 type RegisterRequest struct {
-	Email string `json:"email"`
-	Name string `json:"name"`
+	Email    string `json:"email"`
+	Name     string `json:"name"`
 	Username string `json:"username"`
 	Password string `json:"password"`
 }
 
 type RegisterResponse struct {
-	ID string `json:"id"`
-	Email string `json:"email"`
-	Name string `json:"name"`
+	ID       string `json:"id"`
+	Email    string `json:"email"`
+	Name     string `json:"name"`
 	Username string `json:"username"`
 }
 
 func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	var req RegisterRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+		apiresponse.Error(
+			w,
+			http.StatusBadRequest,
+			"Invalid request payload",
+		)
 		return
 	}
 
 	if req.Email == "" {
-		http.Error(w, "Email is required", http.StatusBadRequest)
+		apiresponse.Error(
+			w,
+			http.StatusBadRequest,
+			"Email is required",
+		)
 		return
 	}
 	if req.Name == "" {
-		http.Error(w, "Name is required", http.StatusBadRequest)
+		apiresponse.Error(
+			w,
+			http.StatusBadRequest,
+			"Name is required",
+		)
 		return
 	}
 	if req.Username == "" {
-		http.Error(w, "Username is required", http.StatusBadRequest)
+		apiresponse.Error(
+			w,
+			http.StatusBadRequest,
+			"Username is required",
+		)
 		return
 	}
 	if req.Password == "" {
-		http.Error(w, "Password is required", http.StatusBadRequest)
+
+		apiresponse.Error(
+			w,
+			http.StatusBadRequest,
+			"Password is required",
+		)
 		return
 	}
 
-	user, err := h.authService.Register(req.Email, req.Name, req.Username, req.Password) 
+	user, err := h.authService.Register(req.Email, req.Name, req.Username, req.Password)
 	if err != nil {
 		if errors.Is(err, ErrEmailInUse) {
-			http.Error(w, "Email already in use", http.StatusConflict)
+			apiresponse.Error(
+				w,
+				http.StatusConflict,
+				"Email already in use",
+			)
 			return
 		}
 
-		http.Error(w, "Error creating user", http.StatusInternalServerError)
+		apiresponse.Error(
+			w,
+			http.StatusBadRequest,
+			"Error creating user",
+		)
 		return
 	}
 
-	response := RegisterResponse {
-		ID: user.ID.String(),
-		Email: user.Email,
+	response := RegisterResponse{
+		ID:       user.ID.String(),
+		Email:    user.Email,
 		Username: user.Username,
 	}
 
@@ -79,38 +110,50 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 }
 
 type LoginRequest struct {
-	Email string `json:"email"`
+	Email    string `json:"email"`
 	Password string `json:"password"`
 }
 
 type LoginResponse struct {
-    AccessToken  string `json:"access_token"`
-    RefreshToken string `json:"refresh_token"`
+	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"refresh_token"`
 }
-
 
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	var req LoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+		apiresponse.Error(
+			w,
+			http.StatusBadRequest,
+			"Invalid request payload",
+		)
 		return
 	}
 
-	 // refresh token 7 days
-    refreshTokenTTL := 7 * 24 * time.Hour
+	// refresh token 7 days
+	refreshTokenTTL := 7 * 24 * time.Hour
 
 	accessToken, refreshToken, err := h.authService.LoginWithRefresh(req.Email, req.Password, refreshTokenTTL)
 	if err != nil {
 		if errors.Is(err, ErrInvalidCredentials) {
-			http.Error(w, "Invalid credentials", http.StatusUnauthorized)
+
+			apiresponse.Error(
+				w,
+				http.StatusUnauthorized,
+				"Invalid credentials",
+			)
 		} else {
-			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			apiresponse.Error(
+				w,
+				http.StatusInternalServerError,
+				"Internal server error",
+			)
 		}
 		return
 	}
 
 	response := LoginResponse{
-		AccessToken: accessToken,
+		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 	}
 
@@ -126,20 +169,32 @@ type RefreshResponse struct {
 	Token string `json:"access_token"`
 }
 
-
 func (h *AuthHandler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 	var req RefreshRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+		apiresponse.Error(
+			w,
+			http.StatusBadRequest,
+			"Invalid request payload",
+		)
 		return
 	}
 
 	token, err := h.authService.RefreshAccessToken(req.RefreshToken)
 	if err != nil {
 		if errors.Is(err, ErrInvalidToken) || errors.Is(err, ErrExpiredToken) {
-			http.Error(w, "Invalid or expired refresh token", http.StatusUnauthorized)
+
+			apiresponse.Error(
+				w,
+				http.StatusUnauthorized,
+				"Invalid or expired refresh token",
+			)
 		} else {
-			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			apiresponse.Error(
+				w,
+				http.StatusInternalServerError,
+				"Internal server error",
+			)
 		}
 		return
 	}
@@ -148,4 +203,3 @@ func (h *AuthHandler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
-

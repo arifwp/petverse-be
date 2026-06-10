@@ -1,3 +1,4 @@
+// internal/paltform/httpserver/server.go
 package httpserver
 
 import (
@@ -7,6 +8,8 @@ import (
 	"net/http"
 
 	"github.com/arifwahyu/petverse-be/internal/config"
+	"github.com/arifwahyu/petverse-be/internal/modules/auth"
+	"github.com/arifwahyu/petverse-be/internal/modules/user"
 )
 
 type ReadinessChecker interface {
@@ -17,11 +20,31 @@ type Server struct {
 	httpServer *http.Server
 }
 
-func New(cfg config.HTTPConfig, log *slog.Logger, readiness ReadinessChecker) *Server {
+func New(
+	cfg config.HTTPConfig,
+	log *slog.Logger,
+	readiness ReadinessChecker,
+	authService *auth.AuthService,
+	authHandler *auth.AuthHandler,
+	userHandler *user.UserHandler,
+) *Server {
 	mux := http.NewServeMux()
-	registerSystemRoutes(mux, readiness)
 
-	handler := recoverer(log)(requestLogger(log)(securityHeaders(mux)))
+	authMw := authMiddleware(authService)
+
+	registerRoutes(
+		mux,
+		readiness,
+		authHandler,
+		userHandler,
+		authMw,
+	)
+
+	handler := recoverer(log)(
+		requestLogger(log)(
+			securityHeaders(mux),
+		),
+	)
 
 	return &Server{
 		httpServer: &http.Server{

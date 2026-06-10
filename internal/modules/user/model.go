@@ -1,11 +1,10 @@
-package auth
+package user
 
 import (
 	"time"
 
 	"github.com/google/uuid"
 )
-
 
 type User struct {
 	ID            uuid.UUID  `db:"id" json:"id"`
@@ -19,4 +18,3 @@ type User struct {
 	EmailVerified bool       `db:"email_verified" json:"email_verified"`
 	PasswordHash  string     `db:"password" json:"-"`
 }
-
