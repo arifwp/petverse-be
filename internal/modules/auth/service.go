@@ -4,7 +4,6 @@ package auth
 import (
 	"database/sql"
 	"errors"
-	"log/slog"
 	"time"
 
 	"github.com/arifwahyu/petverse-be/internal/modules/user"
@@ -104,24 +103,24 @@ func (s *AuthService) ValidateToken(tokenString string) (jwt.MapClaims, error) {
 }
 
 func (s *AuthService) Login(email, password string, refreshTokenTTL time.Duration) (accessToken string, refreshToken string, err error) {
-
 	// Get the user from the database
 	user, err := s.userRepo.GetUserByEmail(email)
 
 	if err != nil {
-
 		return "", "", ErrInvalidCredentials
 	}
+
 	// Verify the password
 	if err := VerifyPassword(user.PasswordHash, password); err != nil {
-		slog.Error("email", email, "error", err)
 		return "", "", ErrInvalidCredentials
 	}
+
 	// Generate an access token
 	accessToken, err = s.generateAccessToken(user)
 	if err != nil {
 		return "", "", err
 	}
+
 	// Create a refresh token
 	token, err := s.refreshTokenRepo.CreateRefreshToken(user.ID, refreshTokenTTL)
 	if err != nil {

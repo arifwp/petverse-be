@@ -9,6 +9,7 @@ import (
 
 	"github.com/arifwahyu/petverse-be/internal/authctx"
 	"github.com/arifwahyu/petverse-be/internal/modules/auth"
+	"github.com/arifwahyu/petverse-be/internal/shared/apiresponse"
 	"github.com/google/uuid"
 )
 
@@ -65,13 +66,22 @@ func authMiddleware(authService *auth.AuthService) func(http.Handler) http.Handl
 			// Extract token from Authorization header
 			authHeader := r.Header.Get("Authorization")
 			if authHeader == "" {
-				http.Error(w, "Authorization header required", http.StatusUnauthorized)
+				// http.Error(w, "Authorization header required", http.StatusUnauthorized)
+				apiresponse.Error(
+					w,
+					http.StatusUnauthorized,
+					"Authorization header required",
+				)
 				return
 			}
 			// Check Bearer token format
 			parts := strings.Fields(authHeader)
 			if len(parts) != 2 || parts[0] != "Bearer" {
-				http.Error(w, "Invalid authorization format", http.StatusUnauthorized)
+				apiresponse.Error(
+					w,
+					http.StatusUnauthorized,
+					"Invalid authorization format",
+				)
 				return
 			}
 
@@ -79,18 +89,30 @@ func authMiddleware(authService *auth.AuthService) func(http.Handler) http.Handl
 			// Validate the token
 			claims, err := authService.ValidateToken(tokenString)
 			if err != nil {
-				http.Error(w, "Invalid or expired token", http.StatusUnauthorized)
+				apiresponse.Error(
+					w,
+					http.StatusUnauthorized,
+					"Invalid or expired token",
+				)
 				return
 			}
 			// Extract user ID from claims
 			userIDStr, ok := claims["sub"].(string)
 			if !ok {
-				http.Error(w, "Invalid token claims", http.StatusUnauthorized)
+				apiresponse.Error(
+					w,
+					http.StatusUnauthorized,
+					"Invalid token claims",
+				)
 				return
 			}
 			userID, err := uuid.Parse(userIDStr)
 			if err != nil {
-				http.Error(w, "Invalid user ID in token", http.StatusUnauthorized)
+				apiresponse.Error(
+					w,
+					http.StatusUnauthorized,
+					"Invalid user ID in token",
+				)
 				return
 			}
 			// Add user ID to request context

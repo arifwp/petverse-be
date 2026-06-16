@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/arifwahyu/petverse-be/internal/authctx"
+	"github.com/arifwahyu/petverse-be/internal/shared/apiresponse"
 )
 
 type UserHandler struct {
@@ -26,13 +27,21 @@ type UserResponse struct {
 func (h *UserHandler) Profile(w http.ResponseWriter, r *http.Request) {
 	userId, ok := authctx.GetUserID(r)
 	if !ok {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		apiresponse.Error(
+			w,
+			http.StatusUnauthorized,
+			"Unauthorized",
+		)
 		return
 	}
 
 	user, err := h.userRepo.GetUserById(userId)
 	if err != nil {
-		http.Error(w, "User not found", http.StatusNotFound)
+		apiresponse.Error(
+			w,
+			http.StatusNotFound,
+			"User not found",
+		)
 		return
 	}
 
