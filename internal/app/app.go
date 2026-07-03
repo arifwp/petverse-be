@@ -50,23 +50,32 @@ func Run(parent context.Context) error {
 		log.Info("postgres connected")
 	}
 
+	if store != nil {
+		if err := store.DB().AutoMigrate(&user.User{}, &auth.RefreshToken{}); err != nil {
+			return err
+		}
+	}
+
 	var readiness httpserver.ReadinessChecker
 	if store != nil {
 		readiness = store
 	}
 
-	userRepo := user.NewUserRepository(store.DB())
-	refreshTokenRepo := auth.NewRefreshTokenRepository(store.DB())
-
-	authService := auth.NewAuthService(
-		userRepo,
-		refreshTokenRepo,
-		cfg.Security.AccessTokenSecret,
-		15*time.Minute,
-	)
-
-	authHandler := auth.NewAuthHandler(authService)
-	userHandler := user.NewUserHandler(userRepo)
+	var authService *auth.AuthService
+	var authHandler *auth.AuthHandler
+	var userHandler *user.UserHandler
+	if store != nil {
+		userRepo := user.NewUserRepository(store.DB())
+		refreshTokenRepo := auth.NewRefreshTokenRepository(store.DB())
+		authService = auth.NewAuthService(
+			userRepo,
+			refreshTokenRepo,
+			cfg.Security.AccessTokenSecret,
+			24*time.Hour,
+		)
+		authHandler = auth.NewAuthHandler(authService)
+		userHandler = user.NewUserHandler(userRepo)
+	}
 
 	server := httpserver.New(
 		cfg.HTTP,

@@ -1,40 +1,33 @@
-// internal/modules/user/repository.go
 package user
 
 import (
-	"database/sql"
 	"time"
 
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 type UserRepository struct {
-	db *sql.DB
+	db *gorm.DB
 }
 
-func NewUserRepository(db *sql.DB) *UserRepository {
-	return &UserRepository{
-		db: db,
-	}
+func NewUserRepository(db *gorm.DB) *UserRepository {
+	return &UserRepository{db: db}
 }
 
 func (r *UserRepository) CreateUser(email, name, username, passwordHash string) (*User, error) {
+	now := time.Now()
 	user := &User{
 		ID:           uuid.New(),
+		Name:         stringPtr(name),
 		Email:        email,
 		Username:     username,
 		PasswordHash: passwordHash,
-		CreatedAt:    time.Now(),
-		UpdatedAt:    time.Now(),
+		CreatedAt:    now,
+		UpdatedAt:    now,
 	}
 
-	query := `
-		INSERT INTO users (id, email, username, password, created_at, updated_at)
-VALUES ($1, $2, $3, $4, $5, $6)
-	`
-
-	_, err := r.db.Exec(query, user.ID, user.Email, user.Username, user.PasswordHash, user.CreatedAt, user.UpdatedAt)
-	if err != nil {
+	if err := r.db.Create(user).Error; err != nil {
 		return nil, err
 	}
 
@@ -42,24 +35,8 @@ VALUES ($1, $2, $3, $4, $5, $6)
 }
 
 func (r *UserRepository) GetUserByEmail(email string) (*User, error) {
-	query := `
-		SELECT id, name, username, email, password, created_at, updated_at
-		FROM users
-		WHERE email = $1
-	`
-
 	var user User
-
-	err := r.db.QueryRow(query, email).Scan(
-		&user.ID,
-		&user.Name,
-		&user.Username,
-		&user.Email,
-		&user.PasswordHash,
-		&user.CreatedAt,
-		&user.UpdatedAt,
-	)
-	if err != nil {
+	if err := r.db.Where("email = ?", email).First(&user).Error; err != nil {
 		return nil, err
 	}
 
@@ -67,25 +44,18 @@ func (r *UserRepository) GetUserByEmail(email string) (*User, error) {
 }
 
 func (r *UserRepository) GetUserById(id uuid.UUID) (*User, error) {
-	query := `SELECT * FROM users WHERE id = $1`
-
 	var user User
-
-	err := r.db.QueryRow(query, id).Scan(
-		&user.ID,
-		&user.Name,
-		&user.Username,
-		&user.Email,
-		&user.AvatarURL,
-		&user.CreatedAt,
-		&user.UpdatedAt,
-		&user.LastLoginAt,
-		&user.EmailVerified,
-	)
-
-	if err != nil {
+	if err := r.db.First(&user, "id = ?", id).Error; err != nil {
 		return nil, err
 	}
 
 	return &user, nil
+}
+
+func stringPtr(value string) *string {
+	if value == "" {
+		return nil
+	}
+
+	return &value
 }

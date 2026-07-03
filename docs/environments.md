@@ -26,7 +26,7 @@ Do not commit real `.env` files or secrets.
 
 ## PostgreSQL
 
-PostgreSQL is the primary database. The runtime uses `database/sql` with the `pgx` driver.
+PostgreSQL is the primary database. The runtime uses GORM with the PostgreSQL driver.
 
 Local default:
 

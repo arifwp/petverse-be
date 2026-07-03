@@ -32,8 +32,13 @@ func registerAPIRoutes(
 	userHandler *user.UserHandler,
 	authMiddleware Middleware,
 ) {
-	auth.RegisterRoutes(mux, authHandler)
-	user.RegisterRoutes(mux, userHandler, authMiddleware)
+	if authHandler != nil {
+		auth.RegisterRoutes(mux, authHandler)
+	}
+
+	if userHandler != nil && authMiddleware != nil {
+		user.RegisterRoutes(mux, userHandler, authMiddleware)
+	}
 }
 
 func healthHandler(w http.ResponseWriter, _ *http.Request) {
@@ -50,10 +55,15 @@ func readyHandler(readiness ReadinessChecker) http.HandlerFunc {
 		now := time.Now().UTC().Format(time.RFC3339)
 
 		if readiness == nil {
-			apiresponse.Error(
+			apiresponse.Success(
 				w,
-				http.StatusServiceUnavailable,
-				"Readiness checker is not configured",
+				http.StatusOK,
+				"Service is ready without database",
+				map[string]any{
+					"status":   "ready",
+					"database": "not_configured",
+					"time":     now,
+				},
 			)
 			return
 		}

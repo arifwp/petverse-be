@@ -1,18 +1,17 @@
-// internal/modules/auth/repository.go
 package auth
 
 import (
-	"database/sql"
 	"time"
 
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 type RefreshTokenRepository struct {
-	db *sql.DB
+	db *gorm.DB
 }
 
-func NewRefreshTokenRepository(db *sql.DB) *RefreshTokenRepository {
+func NewRefreshTokenRepository(db *gorm.DB) *RefreshTokenRepository {
 	return &RefreshTokenRepository{db: db}
 }
 
@@ -29,13 +28,7 @@ func (r *RefreshTokenRepository) CreateRefreshToken(userID uuid.UUID, ttl time.D
 		Revoked:   false,
 	}
 
-	query := `
-		INSERT INTO refresh_tokens (id, user_id, token, expired_at, created_at, revoked)
-        VALUES ($1, $2, $3, $4, $5, $6)
-	`
-
-	_, err := r.db.Exec(query, token.ID, token.UserID, token.Token, token.ExpiredAt, token.CreatedAt, token.Revoked)
-	if err != nil {
+	if err := r.db.Create(token).Error; err != nil {
 		return nil, err
 	}
 
@@ -43,18 +36,8 @@ func (r *RefreshTokenRepository) CreateRefreshToken(userID uuid.UUID, ttl time.D
 }
 
 func (r *RefreshTokenRepository) GetRefreshToken(tokenString string) (*RefreshToken, error) {
-	query := `SELECT id, user_id, token, expired_at, revoked FROM refresh_tokens WHERE token = $1`
-
 	var token RefreshToken
-	err := r.db.QueryRow(query, tokenString).Scan(
-		&token.ID,
-		&token.UserID,
-		&token.Token,
-		&token.ExpiredAt,
-		&token.Revoked,
-	)
-
-	if err != nil {
+	if err := r.db.Where("token = ?", tokenString).First(&token).Error; err != nil {
 		return nil, err
 	}
 
@@ -62,8 +45,8 @@ func (r *RefreshTokenRepository) GetRefreshToken(tokenString string) (*RefreshTo
 }
 
 func (r *RefreshTokenRepository) RevokeRefreshToken(tokenString string) error {
-	query := `UPDATE refresh_tokens SET revoked = true WHERE token = $1`
-
-	_, err := r.db.Exec(query, tokenString)
-	return err
+	return r.db.Model(&RefreshToken{}).
+		Where("token = ?", tokenString).
+		Update("revoked", true).
+		Error
 }

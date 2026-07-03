@@ -7,14 +7,18 @@ import (
 )
 
 type User struct {
-	ID            uuid.UUID  `db:"id" json:"id"`
-	Name          *string    `db:"name" json:"name,omitempty"`
-	Username      string     `db:"username" json:"username"`
-	Email         string     `db:"email" json:"email"`
-	AvatarURL     *string    `db:"avatar_url" json:"avatar_url,omitempty"`
-	CreatedAt     time.Time  `db:"created_at" json:"created_at"`
-	UpdatedAt     time.Time  `db:"updated_at" json:"updated_at"`
-	LastLoginAt   *time.Time `db:"last_login_at" json:"last_login_at,omitempty"`
-	EmailVerified bool       `db:"email_verified" json:"email_verified"`
-	PasswordHash  string     `db:"password" json:"-"`
+	ID            uuid.UUID  `gorm:"type:uuid;primaryKey;column:id" json:"id"`
+	Name          *string    `gorm:"column:name" json:"name,omitempty"`
+	Username      string     `gorm:"column:username;not null;uniqueIndex" json:"username"`
+	Email         string     `gorm:"column:email;not null;uniqueIndex" json:"email"`
+	AvatarURL     *string    `gorm:"column:avatar_url" json:"avatar_url,omitempty"`
+	CreatedAt     time.Time  `gorm:"column:created_at;not null" json:"created_at"`
+	UpdatedAt     time.Time  `gorm:"column:updated_at;not null" json:"updated_at"`
+	LastLoginAt   *time.Time `gorm:"column:last_login_at" json:"last_login_at,omitempty"`
+	EmailVerified bool       `gorm:"column:email_verified;not null;default:false" json:"email_verified"`
+	PasswordHash  string     `gorm:"column:password;not null" json:"-"`
+}
+
+func (User) TableName() string {
+	return "users"
 }

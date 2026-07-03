@@ -2,10 +2,12 @@ package user
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 
 	"github.com/arifwahyu/petverse-be/internal/authctx"
 	"github.com/arifwahyu/petverse-be/internal/shared/apiresponse"
+	"gorm.io/gorm"
 )
 
 type UserHandler struct {
@@ -37,11 +39,12 @@ func (h *UserHandler) Profile(w http.ResponseWriter, r *http.Request) {
 
 	user, err := h.userRepo.GetUserById(userId)
 	if err != nil {
-		apiresponse.Error(
-			w,
-			http.StatusNotFound,
-			"User not found",
-		)
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			apiresponse.Error(w, http.StatusNotFound, "User not found")
+			return
+		}
+
+		apiresponse.Error(w, http.StatusInternalServerError, "Failed to get user")
 		return
 	}
 

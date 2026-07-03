@@ -1,14 +1,13 @@
-// internal/modules/auth/service.go
 package auth
 
 import (
-	"database/sql"
 	"errors"
 	"time"
 
 	"github.com/arifwahyu/petverse-be/internal/modules/user"
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
+	"gorm.io/gorm"
 )
 
 var (
@@ -35,21 +34,19 @@ func NewAuthService(userRepo *user.UserRepository, refreshTokenRepo *RefreshToke
 }
 
 func (s *AuthService) Register(email, name, username, password string) (*user.User, error) {
-	// Check if user already exists
 	_, err := s.userRepo.GetUserByEmail(email)
 	if err == nil {
 		return nil, ErrEmailInUse
 	}
-	// Only proceed if the error was "user not found"
-	if !errors.Is(err, sql.ErrNoRows) {
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, err
 	}
-	// Hash the password
+
 	hashedPassword, err := HashPassword(password)
 	if err != nil {
 		return nil, err
 	}
-	// Create the user
+
 	user, err := s.userRepo.CreateUser(email, name, username, hashedPassword)
 	if err != nil {
 		return nil, err
