@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/arifwahyu/petverse-be/internal/shared/apiresponse"
+	"github.com/arifwahyu/petverse-be/internal/shared/validator"
 )
 
 type AuthHandler struct {
@@ -61,13 +62,23 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		)
 		return
 	}
+
 	if req.Username == "" {
+
+		apiresponse.Error(w, http.StatusBadRequest, "Username is required")
+		return
+
+	}
+
+	if !validator.IsValidUsername(req.Username) {
+
 		apiresponse.Error(
 			w,
 			http.StatusBadRequest,
-			"Username is required",
+			"Username may only contain letters, numbers, underscores (_) and dots (.)",
 		)
 		return
+
 	}
 	if req.Password == "" {
 

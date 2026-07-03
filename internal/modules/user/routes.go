@@ -1,3 +1,4 @@
+// internal/modules/user/routes.go
 package user
 
 import "net/http"
@@ -10,5 +11,10 @@ func RegisterRoutes(
 	mux.Handle(
 		"GET /api/profile",
 		authMiddleware(http.HandlerFunc(h.Profile)),
+	)
+
+	mux.Handle(
+		"PUT /api/profile",
+		authMiddleware(http.HandlerFunc(h.UpdateProfile)),
 	)
 }

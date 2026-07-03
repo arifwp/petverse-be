@@ -1,3 +1,4 @@
+// internal/modules/user/handler.go
 package user
 
 import (
@@ -18,12 +19,6 @@ func NewUserHandler(userRepo *UserRepository) *UserHandler {
 	return &UserHandler{
 		userRepo: userRepo,
 	}
-}
-
-type UserResponse struct {
-	ID       string `json:"id"`
-	Email    string `json:"email"`
-	Username string `json:"username"`
 }
 
 func (h *UserHandler) Profile(w http.ResponseWriter, r *http.Request) {
@@ -48,12 +43,44 @@ func (h *UserHandler) Profile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response := UserResponse{
-		ID:       user.ID.String(),
-		Email:    user.Email,
-		Username: user.Username,
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(user)
+}
+
+type UpdateProfileRequest struct {
+	Name      *string `json:"name"`
+	Username  *string `json:"username"`
+	AvatarURL *string `json:"avatar_url"`
+}
+
+func (h *UserHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
+	userId, ok := authctx.GetUserID(r)
+	if !ok {
+		apiresponse.Unauthorized(w, "Unauthorized")
+		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	var req UpdateProfileRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		apiresponse.BadRequest(w, "Invalid request payload")
+		return
+	}
+
+	user, err := h.userRepo.UpdateProfile(userId, req)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			apiresponse.NotFound(w, "User not found")
+			return
+		}
+
+		apiresponse.InternalServerError(w)
+		return
+	}
+
+	apiresponse.Success(
+		w,
+		http.StatusOK,
+		"Profile updated successfully",
+		user,
+	)
 }
